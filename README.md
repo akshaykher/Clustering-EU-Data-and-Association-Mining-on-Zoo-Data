@@ -8,6 +8,7 @@ http://rpubs.com/akshaykher/Clustering_and_Association_Rules
 **Problem Description - Clustering EU Data**
 
 *Data*
+
 Percentage of population employed in different industries in Europian countries during 1979. The purpose of examining this data is to get insights into patterns of employment (if any) amongst European countries in 1970s.
 
 *Variables*
@@ -38,6 +39,6 @@ Percentage of population employed in different industries in Europian countries 
 
 To Study buying and/or visiting behavior of Zoo members.
 
-*Data: *
+*Data:*
 
 Food Table-Over 14,000  records of *[Demographics + Email, Food items purchased, Dates of purchase(July,2010 through March,2011), Price of food item purchased]*
