@@ -7,7 +7,7 @@ http://rpubs.com/akshaykher/Clustering_and_Association_Rules
 
 **Problem Description - Clustering EU Data**
 
-*Data*
+*Data and Goal:*
 
 Percentage of population employed in different industries in Europian countries during 1979. The purpose of examining this data is to get insights into patterns of employment (if any) amongst European countries in 1970s.
 
