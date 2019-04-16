@@ -1,0 +1,356 @@
+---
+title: "Clustering and Association Rules"
+author: "Akshay Kher"
+date: "April 16, 2019"
+output:
+   html_document:
+    code_folding: hide
+---
+
+# {.tabset .tabset-fade}
+
+## Clustering-European Employment Data
+
+### Summary
+
+***
+
+#### Data
+Percentage of population employed in different industries in Europian countries during 1979. The purpose of examining this data is to get insights into patterns of employment (if any) amongst European countries in 1970s.
+
+*** 
+
+#### Variable Names
+
+1. Country: Name of country
+2. Agr: Percentage employed in agriculture
+3. Min: Percentage employed in mining
+4. Man: Percentage employed in manufacturing
+5. PS: Percentage employed in power supply industries
+6. Con: Percentage employed in construction
+7. SI: Percentage employed in service industries
+8. Fin: Percentage employed in finance
+9. SPS: Percentage employed in social and personal services
+10. TC: Percentage employed in transport and communications
+
+### K-Means Clustering
+
+***
+
+**Loading Libraries**
+```{r warning=FALSE, message=FALSE}
+library(data.table)
+library(gridExtra)
+library(factoextra)
+library(tidyverse)
+library(knitr)
+```
+
+***
+
+**Loading Data**
+```{r warning=FALSE, message=FALSE}
+data <- fread("https://www.dropbox.com/s/i54o2y9t3io88af/europeanJobs.txt?dl=1")
+
+set.seed(12871014)
+
+# randomly select 90% of the data
+index <- sample(nrow(data), size = 0.9*nrow(data))
+subset <- data[index,]
+```
+
+***
+
+**Visualizing for all clusters**
+
+Visualizing data for different clusters on first two principal components
+```{r}
+k2 <- kmeans(subset[,-1], centers = 2, nstart = 25)
+k3 <- kmeans(subset[,-1], centers = 3, nstart = 25)
+k4 <- kmeans(subset[,-1], centers = 4, nstart = 25)
+k5 <- kmeans(subset[,-1], centers = 5, nstart = 25)
+
+# plots to compare
+p1 <- fviz_cluster(k2, geom = "point",  data = subset[,-1]) + ggtitle("k = 2")
+p2 <- fviz_cluster(k3, geom = "point",  data = subset[,-1]) + ggtitle("k = 3")
+p3 <- fviz_cluster(k4, geom = "point",  data = subset[,-1]) + ggtitle("k = 4")
+p4 <- fviz_cluster(k5, geom = "point",  data = subset[,-1]) + ggtitle("k = 5")
+
+grid.arrange(p1, p2, p3, p4, nrow = 2)
+```
+
+***
+
+**Determining number of clusters**
+
+Plotting Within Cluster Sum of Squares vs Cluster Size. Cluster size = 3 seems to be appropriate.
+```{r}
+# within cluster sum of squares
+wss <- c()
+
+for (i in 1:12) 
+  {
+    # calculating total wss for each cluster size with 25 random iterations for each
+    wss[i] <- sum(kmeans(subset[,-1], centers=i, nstart = 25)$withinss)
+}
+
+# plotting wss vs number of clusters
+plot(1:12, wss, type="b", xlab="Number of Clusters",ylab="Within groups sum of squares")
+```
+
+Plotting R-Square vs Cluster Size. Cluster size = 3 seems to be appropriate.
+```{r}
+# r-square
+r_square <- c()
+
+for (i in 1:12) 
+{
+  # calculating total between sum square for each cluster size
+  bss <- sum(kmeans(subset[,-1], centers=i, nstart = 25)$betweenss)
+  
+  # calculating total sum square for each cluster size
+  tss <- sum(kmeans(subset[,-1], centers=i, nstart = 25)$totss)
+  
+  r_square[i] <- bss/tss
+}
+
+# plotting wss vs number of clusters
+plot(1:12, r_square, type="b", xlab="Number of Clusters",ylab="R-Square")
+```
+
+***
+
+**Running K-Means Clustering for 3 clusters**
+```{r}
+kmeans_clustering <- kmeans(subset[,-1], centers=3, nstart=25)
+fviz_cluster(kmeans_clustering, data = subset[,-1])
+```
+
+***
+
+**Interpretting Clusters**
+
+1. **Cluster 1: Developed Countries - **Most of the population is either employed in service industry, social/personal services or manufacturing.
+
+2. **Cluster 2: Underdeveloped Countries - **Most of the population is employed in agriculture industry.
+
+2. **Cluster 3: Developing Countries - **Most of the population is employed in agriculture or manufacturing industry.
+
+```{r}
+centers_df <- round(as.data.frame(kmeans_clustering$centers))
+centers_df$cluster <- rownames(centers_df)
+centers_df <- select(centers_df, cluster, everything())
+kable(centers_df)
+```
+
+**Interpretting Clusters**
+
+Most of the European Nations are either developed or developing. A handful of countries like Yugoslavia, Greece and Turkey are still under-developed.
+
+```{r}
+subset$cluster <- kmeans_clustering$cluster
+kable(arrange(subset, cluster))
+```
+
+### Hierarchical Clustering
+
+**Running Hierarchical Clustering using Ward's Method**
+
+Ward's Method iteratively combines clusters that minimize the within cluster sum of squares
+
+```{r}
+# Calculate the distance matrix
+distance <- dist(subset[,-1])
+
+#Obtain clusters using the Wards method
+hierarchical_clustering <- hclust(distance, method="ward.D")
+
+plot(hierarchical_clustering)
+```
+
+***
+
+**Interpretting Clusters**
+
+1. **Cluster 1: Developing Countries - **Most of the population is employed in agriculture or manufacturing industry.
+
+2. **Cluster 2: Developed Countries - **Most of the population is either employed in service industry, social/personal services or manufacturing.
+
+3. **Cluster 3: Underdeveloped Countries - **Most of the population is employed in agriculture industry.
+
+*Note: Interpretation remains same, however, the cluster numbering changes*
+
+```{r}
+#Cut dendrogram at the 3 clusters level and obtain cluster membership
+hierarchical_clustering_3_clusters = cutree(hierarchical_clustering,k=3)
+
+subset$cluster <- hierarchical_clustering_3_clusters
+
+subset[,-1] %>%
+  group_by(cluster) %>% 
+  summarise_all(funs(mean)) %>% 
+  round() %>% 
+  kable()
+```
+
+
+## Association Rule Mining-Cincinnati Zoo Data
+
+### Summary
+
+**About Cincinnati Zoo:**
+
+* Cincinnati Zoo was founded in 1873. Officially opened in 1875. Second oldest in the Nation after Pennsylvania Zoo. 
+* Zoo houses over 300  animal and over 3,000 plant species.
+* Reptile house is the oldest Zoo building in the country, dating from 1875. 
+* Zoo serves over a million visitors each year. 
+
+***
+
+**Goal of Project:**
+
+To Study buying and/or visiting behavior of Zoo members.
+
+***
+
+**Data: **
+
+Food Table-Over 14,000  records of *[Demographics + Email, Food items purchased, Dates of purchase(July,2010 through March,2011), Price of food item purchased]*
+
+***
+
+### Association Rule Mining
+
+***
+
+**Loading Libraries**
+```{r warning=FALSE, message=FALSE}
+library(data.table)
+library(tidyverse)
+library(knitr)
+library(arules)
+library(arulesViz)
+```
+
+***
+
+**Loading Data**
+
+```{r}
+TransFood <- read.csv('https://xiaoruizhu.github.io/Data-Mining-R/data/food_4_association.csv')
+TransFood <- TransFood[, -1]
+
+# Find out elements that are not equal to 0 or 1 and change them to 1.
+Others <- which(!(as.matrix(TransFood) ==1 | as.matrix(TransFood) ==0), arr.ind=T )
+TransFood[Others] <- 1
+
+# converting to spare format
+TransFood <- as(as.matrix(TransFood), "transactions")
+```
+
+***
+
+**Exploring Data**
+
+Summary of Data
+
+```{r}
+summary(TransFood)
+```
+
+***
+
+Frequently bought items
+
+```{r}
+itemFrequencyPlot(TransFood, support = 0.1, cex.names=0.8)
+```
+
+***
+
+Basket containing more than 13 items
+
+```{r}
+x = TransFood[size(TransFood) > 13]
+inspect(x)
+```
+
+***
+
+**Running Apriori Algorithm to determine association rules**
+
+* **Support**: The support of an itemset X is defined as the proportion of transactions in the data set which contain the itemset. In the zoo data, the support for the rules is relatively low, with a maximum support of no more than 3%.
+
+* **Confidence**: The confidence of a rule is defined as conf(X->Y)=supp(XUY)/supp(X). For example, the rule {milk, bread} -> {butter} has a confidence of 0.5, which means that for 50% of the transactions containing milk and bread the rule is correct. Confidence can be interpreted as an estimate of the conditional probability P(Y |X), the probability of finding the RHS of the rule in transactions under the condition that these transactions also contain the LHS. Association rules are required to satisfy both a minimum support and a minimum confidence constraint at the same time.
+
+* **Lift**: Lift is a popular measure of to filter or rank found rules. The lift of a rule is defined as lift(X->Y)=supp(XUY)/(supp(X)*supp(Y)). Lift can be interpreted as the deviation of the support of the whole rule from the support expected under independence given the supports of the LHS and the RHS. Greater lift values indicate stronger associations.
+
+Running the algorithm
+```{r}
+# Run the apriori algorithm
+basket_rules <- apriori(TransFood,parameter = list(sup = 0.003, conf = 0.5,target="rules"))
+```
+
+***
+
+Summary of the algorithm
+```{r}
+summary(basket_rules)
+```
+
+***
+
+Checking the generated rules
+```{r}
+inspect(basket_rules)
+```
+
+***
+
+Basket rules of size greater than 3
+```{r}
+
+inspect(subset(basket_rules, size(basket_rules)>3))
+```
+
+***
+
+Basket rules of size lift greater than 10
+```{r}
+inspect(subset(basket_rules, lift>10))
+```
+
+***
+
+Basket rules containing french fries on rhs and lift greater than 8
+```{r}
+French.Fries.BasketFood.rhs <- subset(basket_rules, subset = rhs %in% "French.Fries.BasketFood" & lift>8)
+
+inspect(French.Fries.BasketFood.rhs)
+```
+
+***
+
+**Visualizing Association Rules**
+
+Plotting confidence vs support of all rules
+
+```{r}
+plot(basket_rules)
+```
+
+***
+
+Plot selected rules with their corresponding support and lift
+
+```{r}
+plot(basket_rules, method="grouped")
+```
+
+***
+
+Graph Plot of 10 rules with highest lift
+```{r}
+plot(head(sort(basket_rules, by="lift"), 10), method = "graph")
+```
+
